@@ -1,127 +1,82 @@
-/**
- * Dynamic Quote Generator with Category Filtering and Web Storage
- * Assumes the following HTML structure:
- * 
- * <select id="categoryFilter" onchange="filterQuotes()">
- *   <option value="all">All Categories</option>
- *   <!-- Dynamically populated categories -->
- * </select>
- * <div id="quotesContainer"></div>
- * <form id="addQuoteForm">
- *   <input type="text" id="quoteText" placeholder="Quote" required>
- *   <input type="text" id="quoteAuthor" placeholder="Author" required>
- *   <input type="text" id="quoteCategory" placeholder="Category" required>
- *   <button type="submit">Add Quote</button>
- * </form>
- */
+// script.js
 
-// --- Initialization ---
-
-// Load quotes from localStorage or use default
-const defaultQuotes = [
-  { text: "The best way to get started is to quit talking and begin doing.", author: "Walt Disney", category: "Motivation" },
-  { text: "Life is what happens when you're busy making other plans.", author: "John Lennon", category: "Life" },
-  { text: "Success is not in what you have, but who you are.", author: "Bo Bennett", category: "Success" }
+// Quotes array
+let quotes = [
+  { text: "The best way to get started is to quit talking and begin doing.", category: "Motivation" },
+  { text: "Life is what happens when you’re busy making other plans.", category: "Life" },
+  { text: "Don’t let yesterday take up too much of today.", category: "Motivation" },
+  { text: "Your time is limited, don’t waste it living someone else’s life.", category: "Life" }
 ];
 
-function getQuotes() {
-  return JSON.parse(localStorage.getItem('quotes')) || defaultQuotes;
+// Show a random quote
+function showRandomQuote() {
+  const display = document.getElementById("quoteDisplay");
+  const randomIndex = Math.floor(Math.random() * quotes.length);
+  display.textContent = `"${quotes[randomIndex].text}" — ${quotes[randomIndex].category}`;
 }
 
-function setQuotes(quotes) {
-  localStorage.setItem('quotes', JSON.stringify(quotes));
+// Add a new quote
+function addQuote() {
+  const text = document.getElementById("newQuoteText").value.trim();
+  const category = document.getElementById("newQuoteCategory").value.trim();
+
+  if (text && category) {
+    quotes.push({ text, category });
+    document.getElementById("newQuoteText").value = "";
+    document.getElementById("newQuoteCategory").value = "";
+    populateCategories(); // refresh dropdown if new category added
+    filterQuote(); // update display based on filter
+  }
 }
 
-// --- Category Population ---
-
+// Populate categories dynamically
 function populateCategories() {
-  const quotes = getQuotes();
-  const categories = Array.from(new Set(quotes.map(q => q.category)));
-  const filter = document.getElementById('categoryFilter');
-  // Remove all except "All Categories"
+  const filter = document.getElementById("categoryFilter");
   filter.innerHTML = '<option value="all">All Categories</option>';
+
+  const categories = Array.from(new Set(quotes.map(q => q.category)));
   categories.forEach(cat => {
-    const option = document.createElement('option');
+    const option = document.createElement("option");
     option.value = cat;
     option.textContent = cat;
     filter.appendChild(option);
   });
 
-  // Restore last selected filter
-  const lastFilter = localStorage.getItem('lastCategoryFilter');
+  // Restore last selected filter from localStorage
+  const lastFilter = localStorage.getItem("lastCategoryFilter");
   if (lastFilter && filter.querySelector(`option[value="${lastFilter}"]`)) {
     filter.value = lastFilter;
   }
 }
 
-// --- Quote Filtering ---
-
-function filterQuotes() {
-  const filter = document.getElementById('categoryFilter');
+// Filter quotes based on selected category
+function filterQuote() {
+  const filter = document.getElementById("categoryFilter");
   const selected = filter.value;
-  localStorage.setItem('lastCategoryFilter', selected);
 
-  const quotes = getQuotes();
-  const filtered = selected === 'all'
+  localStorage.setItem("lastCategoryFilter", selected);
+
+  const display = document.getElementById("quoteDisplay");
+  const filtered = selected === "all"
     ? quotes
     : quotes.filter(q => q.category === selected);
 
-  displayQuotes(filtered);
-}
-
-// --- Display Quotes ---
-
-function displayQuotes(quotes) {
-  const container = document.getElementById('quotesContainer');
-  container.innerHTML = '';
-  if (quotes.length === 0) {
-    container.textContent = 'No quotes found for this category.';
-    return;
+  if (filtered.length > 0) {
+    const randomIndex = Math.floor(Math.random() * filtered.length);
+    display.textContent = `"${filtered[randomIndex].text}" — ${filtered[randomIndex].category}`;
+  } else {
+    display.textContent = "No quotes available for this category.";
   }
-  quotes.forEach(q => {
-    const div = document.createElement('div');
-    div.className = 'quote';
-    div.innerHTML = `<blockquote>${q.text}</blockquote>
-      <footer>- ${q.author} <em>(${q.category})</em></footer>`;
-    container.appendChild(div);
-  });
 }
 
-// --- Add Quote ---
+// Event listener for new quote button
+document.getElementById("newQuote").addEventListener("click", showRandomQuote);
 
-function addQuote(e) {
-  e.preventDefault();
-  const text = document.getElementById('quoteText').value.trim();
-  const author = document.getElementById('quoteAuthor').value.trim();
-  const category = document.getElementById('quoteCategory').value.trim();
-  if (!text || !author || !category) return;
+// Event listener for category filter
+document.getElementById("categoryFilter").addEventListener("change", filterQuote);
 
-  const quotes = getQuotes();
-  quotes.push({ text, author, category });
-  setQuotes(quotes);
-
+// Initialize on page load
+window.onload = function () {
   populateCategories();
-  filterQuotes();
-
-  // Reset form
-  e.target.reset();
-}
-
-// --- Event Listeners and Initial Load ---
-
-document.addEventListener('DOMContentLoaded', () => {
-  populateCategories();
-  filterQuotes();
-
-  // Listen for add quote form
-  const form = document.getElementById('addQuoteForm');
-  if (form) {
-    form.addEventListener('submit', addQuote);
-  }
-
-  // Listen for category filter change (if not using inline onchange)
-  const filter = document.getElementById('categoryFilter');
-  if (filter && !filter.hasAttribute('onchange')) {
-    filter.addEventListener('change', filterQuotes);
-  }
-});
+  filterQuote();
+};
