@@ -1,260 +1,152 @@
-/* =========================================================
-   Dynamic Quote Generator + Category Filter + Server Sync
-   - Keeps required names: populateCategories, filterQuote,
-     displayRandomQuote, addQuote
-   - Saves selected category as "selectedCategory"
-   - Syncs with JSONPlaceholder (simulated server)
-   - Resolves conflicts with "server wins"
-   - Injects Sync UI automatically (no HTML edits needed)
-   ========================================================= */
+// -------- Initial Setup --------
+let quotes = JSON.parse(localStorage.getItem("quotes")) || [
+  { text: "The only limit to our realization of tomorrow is our doubts of today.", category: "Motivation" },
+  { text: "In the middle of every difficulty lies opportunity.", category: "Inspiration" },
+  { text: "Success is not final, failure is not fatal: It is the courage to continue that counts.", category: "Perseverance" }
+];
 
-// -------------------- Config --------------------
-const API_BASE = 'https://jsonplaceholder.typicode.com';
-const SYNC_INTERVAL_MS = 30000; // 30s
+// -------- DOM Elements --------
+const quoteDisplay = document.getElementById("quoteDisplay");
+const categorySelect = document.getElementById("categorySelect");
 
-// -------------------- State --------------------
-let quotes = loadQuotes();
-
-// -------------------- Storage helpers --------------------
-function loadQuotes() {
-  const stored = localStorage.getItem('quotes');
-  if (stored) return JSON.parse(stored);
-
-  // Default seed data (with ids & timestamps)
-  const now = new Date().toISOString();
-  return [
-    { id: 'loc-1', text: "The best way to get started is to quit talking and begin doing.", category: "Motivation", updatedAt: now },
-    { id: 'loc-2', text: "Don’t let yesterday take up too much of today.", category: "Wisdom", updatedAt: now },
-    { id: 'loc-3', text: "It’s not whether you get knocked down, it’s whether you get up.", category: "Resilience", updatedAt: now }
-  ];
-}
-function saveQuotes() {
-  localStorage.setItem('quotes', JSON.stringify(quotes));
-}
-
-// -------------------- UI helpers (Sync controls) --------------------
-function ensureSyncControls() {
-  if (document.getElementById('syncControls')) return;
-
-  const wrap = document.createElement('div');
-  wrap.id = 'syncControls';
-  wrap.style.display = 'flex';
-  wrap.style.gap = '10px';
-  wrap.style.alignItems = 'center';
-  wrap.style.margin = '10px 0';
-
-  const btn = document.createElement('button');
-  btn.id = 'syncNowBtn';
-  btn.textContent = 'Sync Now';
-  btn.onclick = fetchAndSync;
-
-  const status = document.createElement('span');
-  status.id = 'syncStatus';
-  status.textContent = 'Idle';
-
-  // Put sync controls at the top of <body>
-  document.body.insertBefore(wrap, document.body.firstChild);
-  wrap.appendChild(btn);
-  wrap.appendChild(status);
-}
-
-function setStatus(text) {
-  const el = document.getElementById('syncStatus');
-  if (el) el.textContent = text;
-}
-
-// -------------------- Existing core: display random quote --------------------
+// -------- Display Functions --------
 function displayRandomQuote() {
-  const quoteDisplay = document.getElementById("quoteDisplay");
-  const categoryFilter = document.getElementById("categoryFilter");
-  if (!quoteDisplay || !categoryFilter) return;
-
-  const selected = categoryFilter.value;
-  let filteredQuotes = quotes;
-  if (selected !== "all") {
-    filteredQuotes = quotes.filter(q => q.category === selected);
-  }
-
-  if (filteredQuotes.length === 0) {
-    quoteDisplay.textContent = "No quotes available for this category.";
-    return;
-  }
-
-  const randomIndex = Math.floor(Math.random() * filteredQuotes.length);
-  const q = filteredQuotes[randomIndex];
-  quoteDisplay.textContent = `"${q.text}" - (${q.category})`;
+  const randomIndex = Math.floor(Math.random() * quotes.length);
+  const randomQuote = quotes[randomIndex];
+  quoteDisplay.textContent = `"${randomQuote.text}" (${randomQuote.category})`;
 }
 
-// -------------------- Existing core: add a new quote --------------------
-function addQuote() {
-  // These inputs might or might not exist depending on your HTML.
-  const textEl = document.getElementById("newQuoteText");
-  const catEl = document.getElementById("newQuoteCategory");
-  if (!textEl || !catEl) return; // gracefully skip if inputs not on page
-
-  const newQuoteText = textEl.value.trim();
-  const newQuoteCategory = catEl.value.trim();
-  if (!newQuoteText || !newQuoteCategory) return;
-
-  const quote = {
-    id: `loc-${Date.now()}`,
-    text: newQuoteText,
-    category: newQuoteCategory,
-    updatedAt: new Date().toISOString()
-  };
-
-  quotes.push(quote);
-  saveQuotes();
-
-  // Clear form
-  textEl.value = "";
-  catEl.value = "";
-
-  // Update categories & view
-  populateCategories();
-  filterQuote();
-
-  // Simulate pushing to server (best effort; JSONPlaceholder won’t persist)
-  postQuoteToServer(quote).catch(() => {});
+function displayQuotes(filteredQuotes) {
+  quoteDisplay.textContent = "";
+  filteredQuotes.forEach(q => {
+    const p = document.createElement("p");
+    p.textContent = `"${q.text}" (${q.category})`;
+    quoteDisplay.appendChild(p);
+  });
 }
 
-// -------------------- Existing core: populate categories --------------------
+// -------- Populate Categories --------
 function populateCategories() {
-  const filter = document.getElementById("categoryFilter");
-  if (!filter) return;
-
-  // Build unique categories from current quotes
-  const categories = Array.from(new Set(quotes.map(q => q.category)));
-  // Reset options (keep "All")
-  filter.innerHTML = '<option value="all">All Categories</option>';
-  categories.forEach(cat => {
-    const opt = document.createElement("option");
-    opt.value = cat;
-    opt.textContent = cat;
-    filter.appendChild(opt);
+  categorySelect.innerHTML = `<option value="all">All Categories</option>`;
+  const uniqueCategories = [...new Set(quotes.map(q => q.category))];
+  uniqueCategories.forEach(cat => {
+    const option = document.createElement("option");
+    option.value = cat;
+    option.textContent = cat;
+    categorySelect.appendChild(option);
   });
 
-  // Restore last selected category from localStorage
-  const last = localStorage.getItem("selectedCategory");
-  if (last && (last === 'all' || categories.includes(last))) {
-    filter.value = last;
+  // restore saved category
+  const savedCategory = localStorage.getItem("selectedCategory");
+  if (savedCategory) {
+    categorySelect.value = savedCategory;
+    filterQuote();
   }
 }
 
-// -------------------- Existing core: filter quotes + save selection --------------------
+// -------- Filter Function --------
 function filterQuote() {
-  const filter = document.getElementById("categoryFilter");
-  if (!filter) return;
+  const selectedCategory = categorySelect.value;
+  localStorage.setItem("selectedCategory", selectedCategory);
 
-  // Save selected category to localStorage (checker requires "selectedCategory")
-  localStorage.setItem("selectedCategory", filter.value);
-
-  displayRandomQuote();
+  if (selectedCategory === "all") {
+    displayQuotes(quotes);
+  } else {
+    const filtered = quotes.filter(q => q.category === selectedCategory);
+    displayQuotes(filtered);
+  }
 }
 
-// -------------------- Server simulation --------------------
-async function fetchServerQuotes() {
-  // Get some posts and map them to “quotes” (simulated)
-  const res = await fetch(`${API_BASE}/posts?_limit=8`);
-  if (!res.ok) throw new Error('Network error');
-  const posts = await res.json();
+// -------- Add Quote --------
+function addQuote() {
+  const text = document.getElementById("quoteInput").value;
+  const category = document.getElementById("categoryInput").value;
 
-  const cats = ['Motivation', 'Life', 'Wisdom', 'Creativity'];
-  const now = new Date().toISOString();
+  if (text && category) {
+    const newQuote = { text, category };
+    quotes.push(newQuote);
+    localStorage.setItem("quotes", JSON.stringify(quotes));
 
-  // Map: title -> text, rotating categories
-  return posts.map(p => ({
-    id: `srv-${p.id}`,
-    text: p.title,
-    category: cats[p.id % cats.length],
-    updatedAt: now
-  }));
+    populateCategories();
+    displayQuotes(quotes);
+
+    // sync with server
+    postQuoteToServer(newQuote);
+
+    document.getElementById("quoteInput").value = "";
+    document.getElementById("categoryInput").value = "";
+  }
 }
 
-async function postQuoteToServer(quote) {
-  // Simulate POST; JSONPlaceholder returns an id but won’t persist
-  const res = await fetch(`${API_BASE}/posts`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ title: quote.text, body: quote.category })
-  });
-  // Ignoring response for persistence since server won’t store it long-term
-  await res.json();
+// -------- Server Sync Functions --------
+const SERVER_URL = "https://jsonplaceholder.typicode.com/posts";
+
+function fetchQuotesFromServer() {
+  return fetch(SERVER_URL)
+    .then(response => response.json())
+    .then(data => {
+      return data.slice(0, 5).map(post => ({
+        text: post.title,
+        category: "server"
+      }));
+    })
+    .catch(error => {
+      console.error("Error fetching from server:", error);
+      return [];
+    });
 }
 
-// Merge with "server wins" strategy when text/category differ
-function mergeServerQuotes(serverQuotes) {
-  let conflicts = 0;
-  let added = 0;
-  let updated = 0;
-
-  const map = new Map(quotes.map(q => [q.id, q]));
-
-  serverQuotes.forEach(sq => {
-    const local = map.get(sq.id);
-    if (!local) {
-      quotes.push(sq);
-      map.set(sq.id, sq);
-      added++;
-    } else {
-      const isDifferent = local.text !== sq.text || local.category !== sq.category;
-      if (isDifferent) {
-        // server wins
-        local.text = sq.text;
-        local.category = sq.category;
-        local.updatedAt = sq.updatedAt;
-        updated++;
-        conflicts++;
-      }
-    }
-  });
-
-  saveQuotes();
-  return { conflicts, added, updated };
+function postQuoteToServer(quote) {
+  return fetch(SERVER_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(quote)
+  })
+    .then(response => response.json())
+    .then(data => {
+      console.log("Quote synced to server:", data);
+      return data;
+    })
+    .catch(error => console.error("Error posting to server:", error));
 }
 
-async function fetchAndSync() {
-  setStatus('Syncing…');
-  try {
-    const server = await fetchServerQuotes();
-    const { conflicts, added, updated } = mergeServerQuotes(server);
-    localStorage.setItem('lastSyncAt', new Date().toISOString());
+function syncQuotes() {
+  fetchQuotesFromServer().then(serverQuotes => {
+    let localQuotes = JSON.parse(localStorage.getItem("quotes")) || [];
 
-    let msg = `Synced. New: ${added}, Updated: ${updated}`;
-    if (conflicts) msg += `, Conflicts resolved: ${conflicts} (server wins)`;
-    setStatus(msg);
+    // server wins in conflict
+    localQuotes = [...localQuotes, ...serverQuotes];
+    localQuotes = Array.from(new Set(localQuotes.map(q => q.text)))
+      .map(text => localQuotes.find(q => q.text === text));
 
-    // Refresh UI after sync
+    localStorage.setItem("quotes", JSON.stringify(localQuotes));
+    quotes = localQuotes;
+
+    // update UI
     populateCategories();
     filterQuote();
-  } catch (e) {
-    setStatus('Sync failed (network).');
-  }
+
+    // notification
+    const notification = document.createElement("div");
+    notification.textContent = "Quotes synced with server!";
+    notification.style.background = "lightgreen";
+    notification.style.padding = "10px";
+    notification.style.position = "fixed";
+    notification.style.bottom = "10px";
+    notification.style.right = "10px";
+    notification.style.zIndex = "1000";
+    document.body.appendChild(notification);
+
+    setTimeout(() => notification.remove(), 3000);
+  });
 }
 
-function scheduleSync() {
-  fetchAndSync(); // initial
-  setInterval(fetchAndSync, SYNC_INTERVAL_MS);
-}
+// -------- Event Listeners --------
+document.getElementById("newQuoteBtn").addEventListener("click", displayRandomQuote);
+document.getElementById("addQuoteBtn").addEventListener("click", addQuote);
+categorySelect.addEventListener("change", filterQuote);
 
-// -------------------- Wiring --------------------
-document.addEventListener('DOMContentLoaded', () => {
-  ensureSyncControls();
-
-  // Hook up “Show New Quote” button if present
-  const btn = document.getElementById("newQuote");
-  if (btn) btn.addEventListener("click", displayRandomQuote);
-
-  // Hook up category filter (if you didn’t already use inline onchange)
-  const filter = document.getElementById("categoryFilter");
-  if (filter && !filter.hasAttribute('onchange')) {
-    filter.addEventListener('change', filterQuote);
-  }
-
-  // Initial render
-  populateCategories();
-  filterQuote();
-
-  // Start periodic sync
-  scheduleSync();
-});
+// -------- Init --------
+populateCategories();
+filterQuote();
+setInterval(syncQuotes, 30000);
