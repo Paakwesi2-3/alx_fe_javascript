@@ -104,7 +104,8 @@ async function syncQuotes() {
   populateCategories();
   filterQuote();
 
-  // Notification
+  // ✅ UI notification (alert + div)
+  alert("Quotes synced with server!");
   const notification = document.createElement("div");
   notification.textContent = "Quotes synced with server!";
   notification.style.background = "lightgreen";
