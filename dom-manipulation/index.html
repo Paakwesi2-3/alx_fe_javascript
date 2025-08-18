@@ -4,24 +4,79 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dynamic Quote Generator</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      text-align: center;
+    }
+    #quoteDisplay {
+      margin: 30px 0;
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      min-height: 100px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .quote-text {
+      font-size: 1.5em;
+      margin-bottom: 10px;
+    }
+    .quote-category {
+      color: #666;
+      font-style: italic;
+    }
+    button {
+      padding: 10px 15px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    input {
+      padding: 8px;
+      margin: 5px;
+      width: 300px;
+    }
+    .category-filter {
+      margin: 20px 0;
+    }
+    .category-btn {
+      background-color: #2196F3;
+    }
+    .category-btn.active {
+      background-color: #0b7dda;
+    }
+  </style>
 </head>
 <body>
   <h1>Dynamic Quote Generator</h1>
-
-  <!-- Where the random quote will appear -->
-  <div id="quoteDisplay"></div>
-
-  <!-- Show new quote button -->
+  
+  <div class="category-filter" id="categoryFilter"></div>
+  
+  <div id="quoteDisplay">
+    <p class="quote-text">Click "Show New Quote" to see your first quote!</p>
+    <p class="quote-category"></p>
+  </div>
+  
   <button id="newQuote">Show New Quote</button>
-
-  <!-- Form to add new quotes -->
-  <div>
+  
+  <div id="addQuoteForm" style="margin-top: 30px;">
+    <h3>Add Your Own Quote</h3>
     <input id="newQuoteText" type="text" placeholder="Enter a new quote" />
     <input id="newQuoteCategory" type="text" placeholder="Enter quote category" />
     <button onclick="addQuote()">Add Quote</button>
   </div>
-
-  <!-- Link JS -->
+  
   <script src="script.js"></script>
 </body>
 </html>
