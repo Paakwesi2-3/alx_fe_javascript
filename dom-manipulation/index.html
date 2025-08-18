@@ -2,28 +2,154 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dynamic Quote Generator</title>
+  <title>Dynamic Quote Generator with Storage</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 2rem; }
-    #quoteDisplay { margin: 1rem 0; font-size: 1.2rem; }
-    .category-select, .add-quote-form { margin: 1rem 0; }
-    .add-quote-form input { margin-right: 0.5rem; }
+    body { font-family: Arial, sans-serif; margin: 2em; }
+    #quote { font-size: 1.5em; margin-bottom: 1em; }
+    #quotesList { margin-top: 1em; }
+    button { margin-right: 0.5em; }
   </style>
 </head>
 <body>
   <h1>Dynamic Quote Generator</h1>
-  <div class="category-select">
-    <label for="categorySelect">Choose Category:</label>
-    <select id="categorySelect"></select>
+  <div id="quote"></div>
+  <button onclick="showRandomQuote()">Show Random Quote</button>
+  <button onclick="exportToJsonFile()">Export Quotes (JSON)</button>
+  <label>
+    Import Quotes (JSON):
+    <input type="file" id="importFile" accept=".json" onchange="importFromJsonFile(event)" />
+  </label>
+  <div>
+    <input type="text" id="newQuote" placeholder="Add a new quote" />
+    <button onclick="addQuote()">Add Quote</button>
   </div>
-  <div id="quoteDisplay"></div>
-  <button id="newQuote">Show New Quote</button>
-  <div class="add-quote-form">
-    <input id="newQuoteText" type="text" placeholder="Enter a new quote" />
-    <input id="newQuoteCategory" type="text" placeholder="Enter quote category" />
-    <button id="addQuoteBtn">Add Quote</button>
-  </div>
-  <script src="script.js"></script>
+  <div id="quotesList"></div>
+
+  <script>
+    // --- Storage Keys ---
+    const QUOTES_KEY = 'quotes';
+    const LAST_QUOTE_INDEX_KEY = 'lastQuoteIndex';
+
+    // --- Quotes Array ---
+    let quotes = [];
+
+    // --- Load Quotes from Local Storage ---
+    function loadQuotes() {
+      const stored = localStorage.getItem(QUOTES_KEY);
+      if (stored) {
+        try {
+          quotes = JSON.parse(stored);
+        } catch {
+          quotes = [];
+        }
+      } else {
+        // Default quotes if none in storage
+        quotes = [
+          "The best way to get started is to quit talking and begin doing.",
+          "Don't let yesterday take up too much of today.",
+          "It's not whether you get knocked down, it's whether you get up."
+        ];
+        saveQuotes();
+      }
+    }
+
+    // --- Save Quotes to Local Storage ---
+    function saveQuotes() {
+      localStorage.setItem(QUOTES_KEY, JSON.stringify(quotes));
+      renderQuotesList();
+    }
+
+    // --- Render Quotes List ---
+    function renderQuotesList() {
+      const listDiv = document.getElementById('quotesList');
+      if (quotes.length === 0) {
+        listDiv.innerHTML = "<em>No quotes available.</em>";
+        return;
+      }
+      listDiv.innerHTML = "<strong>All Quotes:</strong><ul>" +
+        quotes.map(q => `<li>${q}</li>`).join('') +
+        "</ul>";
+    }
+
+    // --- Show Random Quote ---
+    function showRandomQuote() {
+      if (quotes.length === 0) {
+        document.getElementById('quote').textContent = "No quotes available.";
+        return;
+      }
+      const idx = Math.floor(Math.random() * quotes.length);
+      document.getElementById('quote').textContent = quotes[idx];
+      // Save last viewed quote index in session storage
+      sessionStorage.setItem(LAST_QUOTE_INDEX_KEY, idx);
+    }
+
+    // --- Add New Quote ---
+    function addQuote() {
+      const input = document.getElementById('newQuote');
+      const newQuote = input.value.trim();
+      if (newQuote) {
+        quotes.push(newQuote);
+        saveQuotes();
+        input.value = '';
+        showRandomQuote();
+      }
+    }
+
+    // --- Export Quotes to JSON File ---
+    function exportToJsonFile() {
+      const dataStr = JSON.stringify(quotes, null, 2);
+      const blob = new Blob([dataStr], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'quotes.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    // --- Import Quotes from JSON File ---
+    function importFromJsonFile(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const fileReader = new FileReader();
+      fileReader.onload = function(e) {
+        try {
+          const importedQuotes = JSON.parse(e.target.result);
+          if (Array.isArray(importedQuotes)) {
+            quotes.push(...importedQuotes.filter(q => typeof q === 'string'));
+            saveQuotes();
+            alert('Quotes imported successfully!');
+          } else {
+            alert('Invalid JSON format. Please upload an array of quotes.');
+          }
+        } catch {
+          alert('Error reading JSON file.');
+        }
+      };
+      fileReader.readAsText(file);
+      // Reset file input so user can import the same file again if needed
+      event.target.value = '';
+    }
+
+    // --- Restore Last Viewed Quote from Session Storage ---
+    function restoreLastViewedQuote() {
+      const idx = sessionStorage.getItem(LAST_QUOTE_INDEX_KEY);
+      if (idx !== null && quotes[idx]) {
+        document.getElementById('quote').textContent = quotes[idx];
+      } else {
+        showRandomQuote();
+      }
+    }
+
+    // --- Initialize App ---
+    loadQuotes();
+    renderQuotesList();
+    restoreLastViewedQuote();
+
+    // --- Expose import function globally for file input ---
+    window.importFromJsonFile = importFromJsonFile;
+  </script>
 </body>
 </html>
