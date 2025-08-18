@@ -1,32 +1,35 @@
-// Quotes array with required structure
+// Quotes array with required properties
 const quotes = [
     { text: "The only limit to our realization of tomorrow is our doubts of today.", category: "inspiration" },
     { text: "Do not watch the clock. Do what it does. Keep going.", category: "motivation" }
 ];
 
-// displayRandomQuote function exactly as required
+// Required function name exactly as specified
 function displayRandomQuote() {
     const randomIndex = Math.floor(Math.random() * quotes.length);
     const randomQuote = quotes[randomIndex];
-    const quoteDisplay = document.getElementById('quoteDisplay');
-    quoteDisplay.innerHTML = `<p>${randomQuote.text} (${randomQuote.category})</p>`;
+    document.getElementById('quoteDisplay').innerHTML = `
+        <p class="quote-text">"${randomQuote.text}"</p>
+        <p class="quote-category">— ${randomQuote.category}</p>
+    `;
 }
 
-// createAddQuoteForm function exactly as required
+// Required function name exactly as specified
 function createAddQuoteForm() {
-    const formDiv = document.createElement('div');
-    formDiv.innerHTML = `
-        <input id="newQuoteText" type="text" placeholder="Enter a new quote" />
-        <input id="newQuoteCategory" type="text" placeholder="Enter quote category" />
-        <button id="addQuoteBtn">Add Quote</button>
+    const formHTML = `
+        <div id="addQuoteForm">
+            <input id="newQuoteText" type="text" placeholder="Enter a new quote" />
+            <input id="newQuoteCategory" type="text" placeholder="Enter quote category" />
+            <button id="addQuoteBtn">Add Quote</button>
+        </div>
     `;
-    document.body.appendChild(formDiv);
+    document.body.insertAdjacentHTML('beforeend', formHTML);
     
-    // Event listener for the add quote button
+    // Event listener for add quote button
     document.getElementById('addQuoteBtn').addEventListener('click', addQuote);
 }
 
-// addQuote function exactly as required
+// Required function
 function addQuote() {
     const textInput = document.getElementById('newQuoteText');
     const categoryInput = document.getElementById('newQuoteCategory');
@@ -43,14 +46,14 @@ function addQuote() {
     }
 }
 
-// Initialize the application
+// Initialize application
 function init() {
     createAddQuoteForm();
     displayRandomQuote();
     
-    // Event listener for "Show New Quote" button exactly as required
+    // Required event listener
     document.getElementById('newQuote').addEventListener('click', displayRandomQuote);
 }
 
-// Start the application when DOM is loaded
+// Start when DOM is loaded
 document.addEventListener('DOMContentLoaded', init);
