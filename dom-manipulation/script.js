@@ -1,82 +1,77 @@
-// script.js
-
-// Quotes array
+// Quotes array with text and category
 let quotes = [
   { text: "The best way to get started is to quit talking and begin doing.", category: "Motivation" },
-  { text: "Life is what happens when you’re busy making other plans.", category: "Life" },
-  { text: "Don’t let yesterday take up too much of today.", category: "Motivation" },
-  { text: "Your time is limited, don’t waste it living someone else’s life.", category: "Life" }
+  { text: "Don’t let yesterday take up too much of today.", category: "Wisdom" },
+  { text: "It’s not whether you get knocked down, it’s whether you get up.", category: "Resilience" }
 ];
 
-// Show a random quote
-function showRandomQuote() {
-  const display = document.getElementById("quoteDisplay");
-  const randomIndex = Math.floor(Math.random() * quotes.length);
-  display.textContent = `"${quotes[randomIndex].text}" — ${quotes[randomIndex].category}`;
+// Function to display a random quote
+function displayRandomQuote() {
+  const quoteDisplay = document.getElementById("quoteDisplay");
+  const categoryFilter = document.getElementById("categoryFilter");
+  const selected = categoryFilter.value;
+
+  let filteredQuotes = quotes;
+  if (selected !== "all") {
+    filteredQuotes = quotes.filter(q => q.category === selected);
+  }
+
+  if (filteredQuotes.length === 0) {
+    quoteDisplay.textContent = "No quotes available for this category.";
+    return;
+  }
+
+  const randomIndex = Math.floor(Math.random() * filteredQuotes.length);
+  quoteDisplay.textContent = `"${filteredQuotes[randomIndex].text}" - (${filteredQuotes[randomIndex].category})`;
 }
 
-// Add a new quote
+// Function to add a new quote
 function addQuote() {
-  const text = document.getElementById("newQuoteText").value.trim();
-  const category = document.getElementById("newQuoteCategory").value.trim();
+  const newQuoteText = document.getElementById("newQuoteText").value.trim();
+  const newQuoteCategory = document.getElementById("newQuoteCategory").value.trim();
 
-  if (text && category) {
-    quotes.push({ text, category });
+  if (newQuoteText && newQuoteCategory) {
+    quotes.push({ text: newQuoteText, category: newQuoteCategory });
     document.getElementById("newQuoteText").value = "";
     document.getElementById("newQuoteCategory").value = "";
-    populateCategories(); // refresh dropdown if new category added
-    filterQuote(); // update display based on filter
+    populateCategories(); // update categories if new one added
   }
 }
 
-// Populate categories dynamically
+// Function to populate categories dynamically
 function populateCategories() {
-  const filter = document.getElementById("categoryFilter");
-  filter.innerHTML = '<option value="all">All Categories</option>';
+  const categoryFilter = document.getElementById("categoryFilter");
+  const categories = ["all", ...new Set(quotes.map(q => q.category))];
 
-  const categories = Array.from(new Set(quotes.map(q => q.category)));
+  categoryFilter.innerHTML = "";
   categories.forEach(cat => {
     const option = document.createElement("option");
     option.value = cat;
     option.textContent = cat;
-    filter.appendChild(option);
+    categoryFilter.appendChild(option);
   });
 
-  // Restore last selected filter from localStorage
-  const lastFilter = localStorage.getItem("lastCategoryFilter");
-  if (lastFilter && filter.querySelector(`option[value="${lastFilter}"]`)) {
-    filter.value = lastFilter;
+  // Restore last selected category from local storage
+  const lastFilter = localStorage.getItem("selectedCategory");
+  if (lastFilter && categories.includes(lastFilter)) {
+    categoryFilter.value = lastFilter;
   }
 }
 
-// Filter quotes based on selected category
-function filterQuote() {
-  const filter = document.getElementById("categoryFilter");
-  const selected = filter.value;
+// Function to filter quotes and save selection
+function filterQuotes() {
+  const categoryFilter = document.getElementById("categoryFilter");
+  const selected = categoryFilter.value;
 
-  localStorage.setItem("lastCategoryFilter", selected);
+  // Save selected category in local storage
+  localStorage.setItem("selectedCategory", selected);
 
-  const display = document.getElementById("quoteDisplay");
-  const filtered = selected === "all"
-    ? quotes
-    : quotes.filter(q => q.category === selected);
-
-  if (filtered.length > 0) {
-    const randomIndex = Math.floor(Math.random() * filtered.length);
-    display.textContent = `"${filtered[randomIndex].text}" — ${filtered[randomIndex].category}`;
-  } else {
-    display.textContent = "No quotes available for this category.";
-  }
+  displayRandomQuote();
 }
 
-// Event listener for new quote button
-document.getElementById("newQuote").addEventListener("click", showRandomQuote);
+// Event listener for Show New Quote button
+document.getElementById("newQuote").addEventListener("click", displayRandomQuote);
 
-// Event listener for category filter
-document.getElementById("categoryFilter").addEventListener("change", filterQuote);
-
-// Initialize on page load
-window.onload = function () {
-  populateCategories();
-  filterQuote();
-};
+// Initialize
+populateCategories();
+displayRandomQuote();
